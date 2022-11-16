@@ -126,6 +126,9 @@ func (t *{TplTableNameCamelLowerCase}Dao) Create(ctx context.Context, d *do.{Tpl
 
 	if {TplTableNameCamelLowerCase}IDs != nil {
 		maxID, err := t.GetMaxID(1)
+		if err != nil {
+			return 0, err
+		}
 		d.Id = maxID
 	}
 
@@ -253,7 +256,7 @@ func (t *{TplTableNameCamelLowerCase}Dao) Upsert(ctx context.Context, uniqWd *do
 	if e.Id > 0 {
 		// 存在更新
 		_, err = t.Update(ctx, d, &do.{TplTableNameCamelCase}{Id: e.Id})
-		return e.Id, err
+		return uint64(e.Id), err
 	}
 
 	return t.Create(ctx, d)
