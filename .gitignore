@@ -26,3 +26,4 @@ gf-cli
 .example/
 config.yaml
 temp/
+vendor

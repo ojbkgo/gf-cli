@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gogf/gf-cli/v2/internal/consts"
-	"github.com/gogf/gf-cli/v2/utility/mlog"
-	"github.com/gogf/gf-cli/v2/utility/utils"
 	"github.com/gogf/gf/v2/container/garray"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
@@ -19,6 +16,10 @@ import (
 	"github.com/gogf/gf/v2/util/gtag"
 	"github.com/olekukonko/tablewriter"
 
+	"github.com/gogf/gf-cli/v2/internal/consts"
+	"github.com/gogf/gf-cli/v2/utility/mlog"
+	"github.com/gogf/gf-cli/v2/utility/utils"
+
 	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/lib/pq"
 	//_ "github.com/mattn/go-oci8"
@@ -26,8 +27,8 @@ import (
 )
 
 const (
-	defaultDaoPath    = `service/internal/dao`
-	defaultDoPath     = `service/internal/do`
+	defaultDaoPath    = `service/dao`
+	defaultDoPath     = `service/do`
 	defaultEntityPath = `model/entity`
 	cGenDaoConfig     = `gfcli.gen.dao`
 	cGenDaoUsage      = `gf gen dao [OPTION]`
@@ -459,6 +460,9 @@ func generateDoContent(tableName, tableNameCamelCase, structDefine string) strin
 }
 
 func generateDaoIndex(tableNameCamelCase, tableNameCamelLowerCase, importPrefix, dirPathDao, fileName string, in cGenDaoInternalInput) {
+	importPrefix = strings.Replace(importPrefix, "git.in.chaitin.net/veinmind/backend/submodule/backend/", "github.com/chaitin/veinmind-backend/", -1)
+	tmp := strings.Split(dirPathDao, "/")
+	moduelName := tmp[len(tmp)-3]
 	path := gfile.Join(dirPathDao, fileName+".go")
 	if in.OverwriteDao || !gfile.Exists(path) {
 		indexContent := gstr.ReplaceByMap(getTplDaoIndexContent(""), g.MapStrStr{
@@ -466,6 +470,7 @@ func generateDaoIndex(tableNameCamelCase, tableNameCamelLowerCase, importPrefix,
 			tplVarTableName:               in.TableName,
 			tplVarTableNameCamelCase:      tableNameCamelCase,
 			tplVarTableNameCamelLowerCase: tableNameCamelLowerCase,
+			"{ModuleName}":                moduelName,
 		})
 		indexContent = replaceDefaultVar(indexContent)
 		if err := gfile.PutContents(path, strings.TrimSpace(indexContent)); err != nil {

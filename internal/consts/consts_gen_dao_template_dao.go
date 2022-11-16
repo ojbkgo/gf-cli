@@ -8,7 +8,16 @@ const TemplateDaoDaoIndexContent = `
 package dao
 
 import (
+	"context"
+	"fmt"
+
+	consts "github.com/chaitin/veinmind-backend/consts/common"
+	"github.com/chaitin/veinmind-backend/module/{ModuleName}/model/entity"
 	"{TplImportPrefix}/internal"
+	"github.com/chaitin/veinmind-backend/module/{ModuleName}/service/do"
+	"github.com/chaitin/veinmind-backend/utility/cond/database"
+	resource "github.com/chaitin/veinmind-backend/utility/resource/common"
+	"github.com/chaitin/veinmind-backend/utility/snowflake"
 )
 
 // {TplTableNameCamelLowerCase}Dao is the data access object for table {TplTableName}.
@@ -25,6 +34,231 @@ var (
 )
 
 // Fill with you ideas below.
+
+// 分布式 ID
+var {TplTableNameCamelLowerCase}IDs *snowflake.ID
+
+func (t *{TplTableNameCamelLowerCase}Dao) InitID(sID uint) {
+	{TplTableNameCamelLowerCase}IDs = &snowflake.ID{SID: uint64(sID)}
+}
+
+// GetMaxID 生成主键id
+func (t *{TplTableNameCamelLowerCase}Dao) GetMaxID(num uint64) (uint64, error) {
+	if {TplTableNameCamelLowerCase}IDs == nil {
+		return 0, consts.DisIDNil
+	}
+
+	return {TplTableNameCamelLowerCase}IDs.Get(num), nil
+}
+
+// 数据隔离
+func (t *{TplTableNameCamelLowerCase}Dao) isolation(ctx context.Context, d *do.{TplTableNameCamelCase}) error {
+	if d == nil {
+		return consts.SearchDoNil
+	}
+
+	if d.OrgId == nil {
+		orgID, err := resource.GetOrgID(ctx)
+		if err != nil {
+			return err
+		}
+
+		d.OrgId = orgID
+	}
+
+	return nil
+}
+
+// GetList 获取列表
+func (t *{TplTableNameCamelLowerCase}Dao) GetList(ctx context.Context, es *[]entity.{TplTableNameCamelCase}, fields []interface{}, d *do.{TplTableNameCamelCase}, conds ...database.Cond) error {
+	err := t.isolation(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	return database.Get(t.{TplTableNameCamelCase}Dao.Ctx(ctx), es, fields, d, conds...)
+}
+
+// GetListByIDs 根据id批量获取
+func (t *{TplTableNameCamelLowerCase}Dao) GetListByIDs(ctx context.Context, es *[]entity.{TplTableNameCamelCase}, fields []interface{}, ids []uint64, d *do.{TplTableNameCamelCase}, conds ...database.Cond) error {
+	err := t.isolation(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	if d.Id == nil {
+		if len(ids) == 0 {
+			return consts.IDsLenZero
+		}
+
+		d.Id = ids
+	}
+
+	return database.Get(t.{TplTableNameCamelCase}Dao.Ctx(ctx), es, fields, d, conds...)
+}
+
+// GetOne 获取单条记录
+func (t *{TplTableNameCamelLowerCase}Dao) GetOne(ctx context.Context, e *entity.{TplTableNameCamelCase}, fields []interface{}, d *do.{TplTableNameCamelCase}, conds ...database.Cond) error {
+	err := t.isolation(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	return database.Get(t.{TplTableNameCamelCase}Dao.Ctx(ctx), e, fields, d, conds...)
+}
+
+// Count 获取数量
+func (t *{TplTableNameCamelLowerCase}Dao) Count(ctx context.Context, d *do.{TplTableNameCamelCase}, conds ...database.Cond) (int, error) {
+	err := t.isolation(ctx, d)
+	if err != nil {
+		return 0, err
+	}
+
+	return database.Count(t.{TplTableNameCamelCase}Dao.Ctx(ctx), d, conds...)
+}
+
+// Create 数据创建
+func (t *{TplTableNameCamelLowerCase}Dao) Create(ctx context.Context, d *do.{TplTableNameCamelCase}) (uint64, error) {
+	err := t.isolation(ctx, d)
+	if err != nil {
+		return 0, err
+	}
+
+	if {TplTableNameCamelLowerCase}IDs != nil {
+		maxID, err := t.GetMaxID(1)
+		d.Id = maxID
+	}
+
+	id, err := database.Create(t.{TplTableNameCamelCase}Dao.Ctx(ctx), d)
+	return uint64(id), err
+}
+
+// Update 数据更新
+func (t *{TplTableNameCamelLowerCase}Dao) Update(ctx context.Context, d *do.{TplTableNameCamelCase}, wd *do.{TplTableNameCamelCase}, conds ...database.Cond) (int64, error) {
+	err := t.isolation(ctx, wd)
+	if err != nil {
+		return 0, err
+	}
+
+	return database.Update(t.{TplTableNameCamelCase}Dao.Ctx(ctx), d, wd, conds...)
+}
+
+// Delete 数据删除
+func (t *{TplTableNameCamelLowerCase}Dao) Delete(ctx context.Context, d *do.{TplTableNameCamelCase}, conds ...database.Cond) (int64, error) {
+	err := t.isolation(ctx, d)
+	if err != nil {
+		return 0, err
+	}
+
+	return database.Delete(t.{TplTableNameCamelCase}Dao.Ctx(ctx), d, conds...)
+}
+
+// BatchCreate 批量创建
+func (t *{TplTableNameCamelLowerCase}Dao) BatchCreate(ctx context.Context, data []do.{TplTableNameCamelCase}, batchNum int) error {
+	dataLen := len(data)
+	if dataLen == 0 {
+		return nil
+	}
+
+	condVal := 0
+	if data[0].OrgId == nil {
+		condVal |= 1
+	}
+
+	if data[0].Id == nil {
+		condVal |= 2
+	}
+
+	switch condVal {
+	case 3:
+		orgID, err := resource.GetOrgID(ctx)
+		if err != nil {
+			return err
+		}
+
+		maxID, err := t.GetMaxID(uint64(dataLen))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < dataLen; i++ {
+			data[i].Id = maxID - uint64(i)
+			data[i].OrgId = orgID
+		}
+	case 2:
+		maxID, err := t.GetMaxID(uint64(dataLen))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < dataLen; i++ {
+			data[i].Id = maxID - uint64(i)
+		}
+	case 1:
+		orgID, err := resource.GetOrgID(ctx)
+		if err != nil {
+			return err
+		}
+
+		for i := 0; i < dataLen; i++ {
+			data[i].OrgId = orgID
+		}
+	}
+
+	if batchNum == 0 {
+		batchNum = 1000
+	}
+
+	_, err := t.{TplTableNameCamelCase}Dao.Ctx(ctx).Batch(batchNum).Data(data).Insert()
+	return err
+}
+
+// BatchUpdate 批量更新
+func (t *{TplTableNameCamelLowerCase}Dao) BatchUpdate(ctx context.Context, ids []string, upData []string) error {
+	orgID, err := resource.GetOrgID(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = database.BatchUpdate(ctx, t.DB(), t.Table(), ids, upData, fmt.Sprintf("org_id = %d", orgID))
+	return err
+}
+
+// FindOrCreate 查找 或者 插入
+func (t *{TplTableNameCamelLowerCase}Dao) FindOrCreate(ctx context.Context, e *entity.{TplTableNameCamelCase}, fields []interface{}, wd *do.{TplTableNameCamelCase}, d *do.{TplTableNameCamelCase}) error {
+	if err := t.GetOne(ctx, e, fields, wd); err != nil {
+		return err
+	}
+
+	if e.Id > 0 {
+		return nil
+	}
+
+	insertID, err := t.Create(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	err = t.GetOne(ctx, e, fields, &do.{TplTableNameCamelCase}{Id: insertID})
+	return err
+}
+
+// Upsert 更新 或者 插入
+func (t *{TplTableNameCamelLowerCase}Dao) Upsert(ctx context.Context, uniqWd *do.{TplTableNameCamelCase}, d *do.{TplTableNameCamelCase}) (uint64, error) {
+	e := &entity.{TplTableNameCamelCase}{}
+	err := t.GetOne(ctx, e, []interface{}{"id"}, uniqWd)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if e.Id > 0 {
+		// 存在更新
+		_, err = t.Update(ctx, d, &do.{TplTableNameCamelCase}{Id: e.Id})
+		return e.Id, err
+	}
+
+	return t.Create(ctx, d)
+}
+
 
 `
 
