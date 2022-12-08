@@ -107,6 +107,76 @@ func (t *{TplTableNameCamelLowerCase}Dao) GetOne(ctx context.Context, e *entity.
 	return database.Get(t.{TplTableNameCamelCase}Dao.Ctx(ctx), e, fields, d, conds...)
 }
 
+func (t *{TplTableNameCamelLowerCase}Dao) FetchOneByID(ctx context.Context, id uint64, fields []interface{}) (e *entity.{TplTableNameCamelCase}, err error) {
+	d := &do.{TplTableNameCamelCase}{}
+	err = t.isolation(ctx, d)
+	if err != nil {
+		return nil, err
+	}
+
+	d.Id = id
+
+	e = &entity.{TplTableNameCamelCase}{}
+	err = database.Get(t.{TplTableNameCamelCase}Dao.Ctx(ctx), e, fields, d)
+	if err != nil {
+		return nil, err
+	}
+	
+	return e, nil
+}
+
+func (t *{TplTableNameCamelLowerCase}Dao) FetchListByIDs(ctx context.Context, ids []uint64, fields []interface{}) (es []entity.{TplTableNameCamelCase}, err error) {
+	d := &do.{TplTableNameCamelCase}{}
+	err = t.isolation(ctx, d)
+	if err != nil {
+		return nil, err
+	}
+
+	d.Id = ids
+
+	es = make([]entity.{TplTableNameCamelCase}, 0)
+	err = database.Get(t.{TplTableNameCamelCase}Dao.Ctx(ctx), &es, fields, d)
+	if err != nil {
+		return nil, err
+	}
+	
+	return es, nil
+}
+
+func (t *{TplTableNameCamelLowerCase}Dao) FetchOne(ctx context.Context, fields []interface{}, d *do.{TplTableNameCamelCase}, conds ...database.Cond) (*entity.{TplTableNameCamelCase}, error) {
+	
+	err := t.isolation(ctx, d)
+	if err != nil {
+		return nil, err
+	}
+
+	e := &entity.{TplTableNameCamelCase}{}
+	err = database.Get(t.{TplTableNameCamelCase}Dao.Ctx(ctx), e, fields, d, conds...)
+	
+	if err != nil {
+		return nil, err
+	}
+
+	return e, nil
+}
+
+func (t *{TplTableNameCamelLowerCase}Dao) FetchList(ctx context.Context, fields []interface{}, d *do.{TplTableNameCamelCase}, conds ...database.Cond) ([]entity.{TplTableNameCamelCase}, error) {
+	
+	err := t.isolation(ctx, d)
+	if err != nil {
+		return nil, err
+	}
+
+	es := make([]entity.{TplTableNameCamelCase}, 0)
+	err = database.Get(t.{TplTableNameCamelCase}Dao.Ctx(ctx), &es, fields, d, conds...)
+	
+	if err != nil {
+		return nil, err
+	}
+
+	return es, nil
+}
+
 // Count 获取数量
 func (t *{TplTableNameCamelLowerCase}Dao) Count(ctx context.Context, d *do.{TplTableNameCamelCase}, conds ...database.Cond) (int, error) {
 	err := t.isolation(ctx, d)
@@ -245,21 +315,22 @@ func (t *{TplTableNameCamelLowerCase}Dao) FindOrCreate(ctx context.Context, e *e
 }
 
 // Upsert 更新 或者 插入
-func (t *{TplTableNameCamelLowerCase}Dao) Upsert(ctx context.Context, uniqWd *do.{TplTableNameCamelCase}, d *do.{TplTableNameCamelCase}) (uint64, error) {
+func (t *{TplTableNameCamelLowerCase}Dao) Upsert(ctx context.Context, uniqWd *do.{TplTableNameCamelCase}, d *do.{TplTableNameCamelCase}, conds ...database.Cond) (uint64, bool, error) {
 	e := &entity.{TplTableNameCamelCase}{}
 	err := t.GetOne(ctx, e, []interface{}{"id"}, uniqWd)
 
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 
 	if e.Id > 0 {
 		// 存在更新
-		_, err = t.Update(ctx, d, &do.{TplTableNameCamelCase}{Id: e.Id})
-		return uint64(e.Id), err
+		_, err = t.Update(ctx, d, &do.{TplTableNameCamelCase}{Id: e.Id}, conds...)
+		return uint64(e.Id), true, err
 	}
 
-	return t.Create(ctx, d)
+	id, err := t.Create(ctx, d)
+	return id, false, err
 }
 
 
@@ -274,6 +345,7 @@ package internal
 
 import (
 	"context"
+
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 )
